@@ -1,0 +1,42 @@
+#!/bin/bash
+# ---------------------------------------------------------------------------
+# harvest_crop - Looks for the specified crop and spits out a list of
+#                packages suitable to be used as a filter for reprepro
+#
+# usage: harvest_crop project.repo.dist.arch crop
+# ---------------------------------------------------------------------------
+# Make sure we're being called as `harvest_crop` and that the folders we need
+# exist
+
+root="${BASH_SOURCE%/harvest_crop}"
+crop="$root/crops/$1"
+
+if [[ -z "$1" ]]; then
+    echo "Usage: harvest_crop project.repo.dist.arch crop[s]"
+    exit 1
+
+elif [[ -z "$@" ]]; then
+    echo "Usage: harvest_crop project.repo.dist.arch crop[s]"
+    exit 1
+
+elif [[ ! -d "$crop" ]]; then
+    echo "$crop -> crop directory does not exist"
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Now apply the magic formula to the crop to get a list of packages, but
+# first shift $1 (the farm name) out of the way...
+
+shift
+
+for plant in "$@"; do
+    for pkg in $(cat "$crop/$plant" \
+               | tail -n +3 \
+               | head -n -2 \
+               | cut -d '|' -f 1); do\
+        echo $pkg install; \
+    done
+done
+
+# ---------------------------------------------------------------------------

@@ -1,0 +1,5 @@
+mirror="http://mirror.csclub.uwaterloo.ca/debian"
+dist="jessie"
+arch="armel"
+components="main,contrib,non-free"
+options="--verbose --no-rdepends"

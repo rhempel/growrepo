@@ -1,0 +1,98 @@
+#!/bin/bash
+# ---------------------------------------------------------------------------
+# grow_crop - runs germinate on a specific seed and puts the result in
+#             the corresponding crop
+#
+# usage: grow_crop project.repo.dist.arch
+#
+# This script is just a convenient wrapper for `germinate` which is a 
+# utility that makes it relatively easy to create a list of all the packages
+# that are required to create a local mirror.
+#
+# This script is fairly tolerant of where it is executed from - it uses the
+# file path to determine the top level of the directory where it expects
+# to find the directories it needs.
+#
+# ./seeds/ - where the project specific seed files live
+# ./farms/ - where the project specific germinate options live
+# ./crops/ - where the project specific output goes (can be deleted later)
+#
+# Under each of these directories, we put a project specific directory that
+# holds the actual files. The naming convention for the project is:
+#
+# project.repo.dist.arch/
+#
+# project - the name of the project you want to generate crops for
+# repo    - the name of the repo you'll be pulling packages from
+# dist    - the distribution in the repo
+# arch    - the architecture of the target
+#
+# This seems awfully complicated, but there's a good reason for it. In
+# the original use I had for a list of packages, I was creating a local
+# partial mirror of Debian Jessie for the armel architecture. It turns 
+# out that I actually needed to get packages from the official Debian
+# repos as well as a third party repo. On top of that, the distribution
+# that I was targeting switched from `wheezy` to `jessie`. 
+#
+# I realized that I might want to make local partial mirrors for different
+# projects I was working on, and maybe even for different architectures.
+#
+# So it seems complicated, but it's a general solution to my problem.
+# ---------------------------------------------------------------------------
+# Make sure we're being called as `grow_crop` and that the folders we need
+# exist
+
+root="${BASH_SOURCE%/grow_crop}"
+seed="$root/seeds/$1"
+farm="$root/farms/$1"
+crop="$root/crops/$1"
+
+if [[ -z "$1" ]]; then
+    echo "Usage: germinate project.repo.dist.arch"
+    exit 1
+
+elif [[ ! -d "$seed" ]]; then
+    echo "$seed -> seed directory does not exist"
+    exit 1
+
+elif [[ ! -d "$farm" ]]; then
+    echo "$farm -> farm directory does not exist"
+    exit 1
+
+elif [[ ! -e "$farm/conf" ]]; then
+    echo "$farm/conf -> farm conf does not exist"
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Now source the project specific farm parameters, set up variables and 
+# run germinate - there are no default values, everything MUST be defined
+
+. "$farm/conf"
+
+mkdir -p "$crop"
+cd "$crop"
+
+for param in mirror dist arch components
+do
+    if [[ -z "${!param}" ]]; then
+        echo "$param is not defined in $farm/conf"
+        exit 1
+    else
+        echo "${param} is ${!param}"
+    fi
+done
+
+# NOTE WELL that we don't add quotes around $options because it might be
+#           a list of options. If you put quotes around it then it's passed
+#           to germinate as a single option that it can't understand
+
+germinate -S "file://$PWD/../../seeds/" \
+          -s "$1"                       \
+          -m "$mirror"                  \
+          -d "$dist"                    \
+          -a "$arch"                   \
+          -c "$components"     \
+          $options
+
+# ---------------------------------------------------------------------------

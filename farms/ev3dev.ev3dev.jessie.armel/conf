@@ -1,0 +1,5 @@
+mirror="http://ev3dev.org/debian"
+dist="jessie"
+arch="armel"
+components="main"
+options="--verbose --no-rdepends"
