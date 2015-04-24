@@ -1,42 +1,91 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ---------------------------------------------------------------------------
 # harvest_crop - Looks for the specified crop and spits out a list of
 #                packages suitable to be used as a filter for reprepro
 #
-# usage: harvest_crop project.repo.dist.arch crop
+# usage: harvest_crop project.repo.dist.arch crop[s]
+#
+# Copyright (C) 2014-2015 Ralph Hempel <rhempel@hempeldesigngroup.com>
+#
+# See LICENSE for https://github.com/rhempel/growrepo
+# -----------------------------------------------------------------------------
+
+set -e
+
+. ./bashtools/src/fmt
+. ./bashtools/src/checkutil
+
+LOG_LEVEL="4"
+
+# -----------------------------------------------------------------------------
+
+info "Executing $0"
+
+# -----------------------------------------------------------------------------
+# Check to make sure we are NOT running as the root user
+
+checknotuser "root"
+
 # ---------------------------------------------------------------------------
 # Make sure we're being called as `harvest_crop` and that the folders we need
 # exist
 
-root="${BASH_SOURCE%/harvest_crop}"
-crop="$root/crops/$1"
+PRDA=$1
+SOURCE_ROOT="${BASH_SOURCE%/harvest_crop}"
+CROP="${SOURCE_ROOT}/crops/${PRDA}"
+REPO="/srv/reprepro/${PRDA}"
 
-if [[ -z "$1" ]]; then
-    echo "Usage: harvest_crop project.repo.dist.arch crop[s]"
-    exit 1
+PROJECT=${PRDA%%.*}
+PRDA=${PRDA#*.}
+REPOSITORY=${PRDA%%.*}
+PRDA=${PRDA#*.}
+DISTRIBUTION=${PRDA%%.*}
+PRDA=${PRDA#*.}
+ARCHITECTURE=${PRDA%%.*}
 
-elif [[ -z "$@" ]]; then
-    echo "Usage: harvest_crop project.repo.dist.arch crop[s]"
-    exit 1
+checkemptyvar "CROP"
+checkemptyvar "REPO"
 
-elif [[ ! -d "$crop" ]]; then
-    echo "$crop -> crop directory does not exist"
-    exit 1
-fi
+checkemptyvar PROJECT
+checkemptyvar REPOSITORY
+checkemptyvar DISTRIBUTION
+checkemptyvar ARCHITECTURE
+
+[[ -z "$1" ]] && fail "Usage: harvest_crop project.repo.dist.arch crop[s]"
+
+[[ -d "${CROP}"      ]] || fail "\"${CROP}\" -> crop directory does not exist"
+[[ -d "${REPO}"      ]] || fail "\"${REPO}\" -> repo directory does not exist"
 
 # ---------------------------------------------------------------------------
 # Now apply the magic formula to the crop to get a list of packages, but
 # first shift $1 (the farm name) out of the way...
 
+info "Creating package list for \"${REPO}\""
+
 shift
 
-for plant in "$@"; do
-    for pkg in $(cat "$crop/$plant" \
+for PLANT in "$@"; do
+    for PKG in $(cat "${CROP}/${PLANT}" \
                | tail -n +3 \
                | head -n -2 \
                | cut -d '|' -f 1); do\
-        echo $pkg install; \
+        PACKAGES="${PACKAGES}${PACKAGES+\n}${PKG} install"
     done
 done
 
-# ---------------------------------------------------------------------------
+info "Writing package list to \"${REPO}/packages\""
+
+echo -e "${PACKAGES}" > "${REPO}/packages" 
+
+info "Updating packages for \"${REPO}\" - this may take a while"
+
+pushd .
+
+cd "${REPO}"
+reprepro -V update ${DISTRIBUTION}
+
+popd
+  
+# ------------------------------------------------------------------------------
+info "Done" 
+# ------------------------------------------------------------------------------

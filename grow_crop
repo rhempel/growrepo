@@ -38,61 +38,74 @@
 # projects I was working on, and maybe even for different architectures.
 #
 # So it seems complicated, but it's a general solution to my problem.
+#
+# Copyright (C) 2014-2015 Ralph Hempel <rhempel@hempeldesigngroup.com>
+#
+# See LICENSE for https://github.com/rhempel/growrepo
+# -----------------------------------------------------------------------------
+
+set -e
+
+. ./bashtools/src/fmt
+. ./bashtools/src/checkutil
+
+# -----------------------------------------------------------------------------
+
+info "Executing $0"
+
+# -----------------------------------------------------------------------------
+# Check to make sure we are NOT running as the root user
+
+checknotuser "root"
+
 # ---------------------------------------------------------------------------
 # Make sure we're being called as `grow_crop` and that the folders we need
 # exist
 
-root="${BASH_SOURCE%/grow_crop}"
-seed="$root/seeds/$1"
-farm="$root/farms/$1"
-crop="$root/crops/$1"
+SOURCE_ROOT="${BASH_SOURCE%/grow_crop}"
+SEED="${SOURCE_ROOT}/seeds/$1"
+FARM="${SOURCE_ROOT}/farms/$1"
+CROP="${SOURCE_ROOT}/crops/$1"
 
-if [[ -z "$1" ]]; then
-    echo "Usage: germinate project.repo.dist.arch"
-    exit 1
+checkemptyvar "SEED"
+checkemptyvar "FARM"
+checkemptyvar "CROP"
 
-elif [[ ! -d "$seed" ]]; then
-    echo "$seed -> seed directory does not exist"
-    exit 1
+[[ -z "$1" ]] && fail "Usage: grow_crop project.repo.dist.arch"
 
-elif [[ ! -d "$farm" ]]; then
-    echo "$farm -> farm directory does not exist"
-    exit 1
-
-elif [[ ! -e "$farm/conf" ]]; then
-    echo "$farm/conf -> farm conf does not exist"
-    exit 1
-fi
+[[ -d "${SEED}"      ]] || fail "${SEED} -> seed directory does not exist"
+[[ -d "${FARM}"      ]] || fail "${FARM} -> farm directory does not exist"
+[[ -e "${FARM}/conf" ]] || fail "${FARM}/conf -> farm/conf does not exist"
 
 # ---------------------------------------------------------------------------
 # Now source the project specific farm parameters, set up variables and 
 # run germinate - there are no default values, everything MUST be defined
 
-. "$farm/conf"
+. "${FARM}/conf"
 
-mkdir -p "$crop"
-cd "$crop"
 
-for param in mirror dist arch components
-do
-    if [[ -z "${!param}" ]]; then
-        echo "$param is not defined in $farm/conf"
-        exit 1
-    else
-        echo "${param} is ${!param}"
-    fi
-done
+[[ -d "${CROP}" ]] || mkdir -p "${CROP}"
+[[ -d "${CROP}" ]] || fail "${CROP} -> cannot create crop directory"
+
+cd "${CROP}"
+
+checkemptyvar "MIRROR"
+checkemptyvar "DIST"
+checkemptyvar "ARCH"
+checkemptyvar "COMPONENTS"
 
 # NOTE WELL that we don't add quotes around $options because it might be
 #           a list of options. If you put quotes around it then it's passed
 #           to germinate as a single option that it can't understand
 
-germinate -S "file://$PWD/../../seeds/" \
-          -s "$1"                       \
-          -m "$mirror"                  \
-          -d "$dist"                    \
-          -a "$arch"                   \
-          -c "$components"     \
+germinate -S "file://${PWD}/../../seeds/" \
+          -s "$1"                         \
+          -m "${MIRROR}"                  \
+          -d "${DIST}"                    \
+          -a "${ARCH}"                    \
+          -c "${COMPONENTS}"              \
           $options
 
-# ---------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+info "Done" 
+# ------------------------------------------------------------------------------
