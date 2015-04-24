@@ -1,16 +1,3 @@
- * apt
- * conspy
- * dosfstools
- * kmod
- * lvm2
- * ntp
- * parted
- * procps
- * psmisc
- * sudo
- * alsa-utils
- * beep
- * espeak
  * brickman
  * ev3dev-base
  * linux-image-ev3dev
@@ -18,46 +5,3 @@
  * plymouth
  * systemd-sysv
  * udev
- * nfs-common
- * smbnetfs
- * sshfs
- * firmware-atheros
- * firmware-ralink
- * firmware-realtek
- * fbcat
- * netpbm
- * connman
- * ethtool
- * ev3dev-connman-config
- * ifupdown
- * iproute
- * iptables
- * iputils-ping
- * isc-dhcp-client
- * libnss-myhostname
- * netbase
- * netcat-openbsd
- * net-tools
- * ssh
- * wpasupplicant
- * gawk
- * golang-go
- * guile-1.8
- * lua5.2
- * python
- * python3
- * python-gobject
- * python-pyudev
- * nodejs
- * nodejs-legacy
- * npm
- * ruby
- * console-setup
- * conspy
- * less
- * nano
- * screen
- * tree
- * usbutils
- * vim
- * wget
