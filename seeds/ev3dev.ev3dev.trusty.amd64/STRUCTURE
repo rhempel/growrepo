@@ -1,0 +1,6 @@
+required:
+minimal: required
+standard: required minimal
+custom:
+blacklist:
+supported:
