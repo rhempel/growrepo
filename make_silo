@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# make_silo - Creates a skeleton folder and file structure for a partial
+#             mirror that uses reprepro to populate itself
+#
+# usage: make_silo project.repo.rel.arch
+#
+# NOTE - this script MUST be run as the `reprepro` user - use:
+#
+# sudo -u reprepro bash
+#
+# Copyright (C) 2014-2015 Ralph Hempel <rhempel@hempeldesigngroup.com>
+#
+# See LICENSE for https://github.com/rhempel/growrepo
+# -----------------------------------------------------------------------------
+
+set -e
+
+# ---------------------------------------------------------------------------
+# Make sure we're being called as `make_silo` and that the folders we need
+# exist
+
+[[ -z "$1" ]] && fail "Usage: make_silo project.repo.rel.arch"
+
+SOURCE_ROOT="${BASH_SOURCE%/make_silo}"
+
+. ${SOURCE_ROOT}/bashtools/src/fmt
+. ${SOURCE_ROOT}/bashtools/src/checkutil
+
+LOG_LEVEL="4"
+
+# -----------------------------------------------------------------------------
+
+info "Executing $0"
+
+# -----------------------------------------------------------------------------
+# Check to make sure we are running as the reprepro user
+
+checkuser "reprepro"
+
+FARM="${SOURCE_ROOT}/farms/$1"
+
+checkemptyvar "FARM"
+
+[[ -d "${FARM}" ]] || fail "\"${FARM}\" -> farm directory does not exist"
+
+# ---------------------------------------------------------------------------
+# Now source the project specific farm parameters, set up variables and 
+# run germinate - there are no default values, everything MUST be defined
+
+. "${FARM}/conf"
+
+checkemptyvar "PROJ"
+checkemptyvar "REPO"
+checkemptyvar "DIST"
+checkemptyvar "REL"
+checkemptyvar "ARCH"
+
+PRRA="${PROJ}.${REPO}.${REL}.${ARCH}"
+
+[[ "$1" = "${PRRA}"           ]] || fail "\"$1\" does not match conf \"${PRRA}"\"
+
+[[ -d "/srv/reprepro/${PRRA}" ]] && fail "\"/srv/reprepro/${PRRA}\" -> repo directory already exists"
+
+# ---------------------------------------------------------------------------
+# We can now start creating the directory/folder structure required by
+# reprepro - we'll fill in the templates with default values
+
+info "Creating \"/srv/reprepro/${PRRA}\""
+
+for d in "conf" "gpg" "logs" "www"; do
+    mkdir -p "/srv/reprepro/${PRRA}/$d"
+done
+
+chmod 700 /srv/reprepro/${PRRA}/gpg
+
+# ---------------------------------------------------------------------------
+
+info "Creating \"/srv/reprepro/${PRRA}/conf/options\""
+
+cat <<EOF > "/srv/reprepro/${PRRA}/conf/options"
+outdir +b/www
+logdir +b/logs
+gnupghome +b/gpg
+EOF
+
+# ---------------------------------------------------------------------------
+
+info "Creating \"/srv/reprepro/${PRRA}/conf/distributions\""
+
+cat <<EOF > "/srv/reprepro/${PRRA}/conf/distributions"
+Codename: ${REL}
+Architectures: ${ARCH}
+Description: ${PROJ} ${DESC}
+Components: main
+Update: ${PRRA}
+EOF
+
+# ---------------------------------------------------------------------------
+
+info "Creating \"/srv/reprepro/${PRRA}/conf/updates\""
+
+cat <<EOF > "/srv/reprepro/${PRRA}/conf/updates"
+Name: ${PRRA} 
+Method: ${MIRROR}
+VerifyRelease: ${GPG_KEY}
+Suite: ${REL}
+Components: ${COMPONENTS//,/ }
+Architectures: ${ARCH}
+FilterList: purge ../packages
+EOF
+
+# ------------------------------------------------------------------------------
+
+info "Getting GPG key for \"${MIRROR}\""
+
+gpg2 --keyserver "pgp.mit.edu" --recv-keys ${GPG_KEY}
+
+# ------------------------------------------------------------------------------
+
+info "Exporting GPG key for \"${MIRROR}\""
+
+gpg2 --export ${GPG_KEY} | GNUPGHOME="/srv/reprepro/${PRRA}/gpg" gpg --import --no-permission-warning
+    
+# ------------------------------------------------------------------------------
+info "Done" 
+# ------------------------------------------------------------------------------

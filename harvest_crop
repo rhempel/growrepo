@@ -5,6 +5,10 @@
 #
 # usage: harvest_crop project.repo.dist.arch crop[s]
 #
+# NOTE - this script MUST be run as the `reprepro` user - use:
+#
+# sudo -u reprepro bash
+#
 # Copyright (C) 2014-2015 Ralph Hempel <rhempel@hempeldesigngroup.com>
 #
 # See LICENSE for https://github.com/rhempel/growrepo
@@ -12,8 +16,16 @@
 
 set -e
 
-. ./bashtools/src/fmt
-. ./bashtools/src/checkutil
+# ---------------------------------------------------------------------------
+# Make sure we're being called as `harvest_crop` and that the folders we need
+# exist
+
+[[ -z "$1" ]] && fail "Usage: harvest_crop project.repo.rel.arch crop[s]"
+
+SOURCE_ROOT="${BASH_SOURCE%/harvest_crop}"
+
+. ${SOURCE_ROOT}/bashtools/src/fmt
+. ${SOURCE_ROOT}/bashtools/src/checkutil
 
 LOG_LEVEL="4"
 
@@ -22,70 +34,70 @@ LOG_LEVEL="4"
 info "Executing $0"
 
 # -----------------------------------------------------------------------------
-# Check to make sure we are NOT running as the root user
+# Check to make sure we are running as the reprepro user
 
-checknotuser "root"
+checkuser "reprepro"
+
+FARM="${SOURCE_ROOT}/farms/$1"
+CROP="${SOURCE_ROOT}/crops/$1"
+
+checkemptyvar "FARM"
+checkemptyvar "CROP"
+
+[[ -d "${FARM}" ]] || fail "\"${FARM}\" -> farm directory does not exist"
+[[ -d "${CROP}" ]] || fail "\"${CROP}\" -> crop directory does not exist"
 
 # ---------------------------------------------------------------------------
-# Make sure we're being called as `harvest_crop` and that the folders we need
-# exist
+# Now source the project specific farm parameters, set up variables and 
+# run germinate - there are no default values, everything MUST be defined
 
-PRDA=$1
-SOURCE_ROOT="${BASH_SOURCE%/harvest_crop}"
-CROP="${SOURCE_ROOT}/crops/${PRDA}"
-REPO="/srv/reprepro/${PRDA}"
+. "${FARM}/conf"
 
-PROJECT=${PRDA%%.*}
-PRDA=${PRDA#*.}
-REPOSITORY=${PRDA%%.*}
-PRDA=${PRDA#*.}
-DISTRIBUTION=${PRDA%%.*}
-PRDA=${PRDA#*.}
-ARCHITECTURE=${PRDA%%.*}
-
-checkemptyvar "CROP"
+checkemptyvar "PROJ"
 checkemptyvar "REPO"
+checkemptyvar "DIST"
+checkemptyvar "REL"
+checkemptyvar "ARCH"
 
-checkemptyvar PROJECT
-checkemptyvar REPOSITORY
-checkemptyvar DISTRIBUTION
-checkemptyvar ARCHITECTURE
+PRRA="${PROJ}.${REPO}.${REL}.${ARCH}"
 
-[[ -z "$1" ]] && fail "Usage: harvest_crop project.repo.dist.arch crop[s]"
+[[ "$1" = "${PRRA}"           ]] || fail "\"$1\" does not match conf \"${PRRA}"\"
 
-[[ -d "${CROP}"      ]] || fail "\"${CROP}\" -> crop directory does not exist"
-[[ -d "${REPO}"      ]] || fail "\"${REPO}\" -> repo directory does not exist"
+[[ -d "/srv/reprepro/${PRRA}" ]] || fail "\"/srv/reprepro/${PRRA}\" -> repo directory does not exist"
 
 # ---------------------------------------------------------------------------
 # Now apply the magic formula to the crop to get a list of packages, but
 # first shift $1 (the farm name) out of the way...
 
-info "Creating package list for \"${REPO}\""
+info "Creating package list for \"${PRRA}\""
 
 shift
 
-for PLANT in "$@"; do
-    for PKG in $(cat "${CROP}/${PLANT}" \
+[[ -z "$1" ]] && fail "At least one crop must be specified"
+
+for c in "$@"; do
+    for p in $(cat "${CROP}/$c" \
                | tail -n +3 \
                | head -n -2 \
                | cut -d '|' -f 1); do\
-        PACKAGES="${PACKAGES}${PACKAGES+\n}${PKG} install"
+        PACKAGES="${PACKAGES}${PACKAGES+\n}$p install"
     done
 done
 
-info "Writing package list to \"${REPO}/packages\""
+# ---------------------------------------------------------------------------
 
-echo -e "${PACKAGES}" > "${REPO}/packages" 
+info "Writing package list to \"/srv/reprepro/${PRRA}/packages\""
+
+echo -e "${PACKAGES}" > "/srv/reprepro/${PRRA}/packages" 
+
+# ---------------------------------------------------------------------------
 
 info "Updating packages for \"${REPO}\" - this may take a while"
 
-pushd .
+cd "/srv/reprepro/${PRRA}"
 
-cd "${REPO}"
-reprepro -V update ${DISTRIBUTION}
+reprepro -V update ${REL}
 
-popd
-  
 # ------------------------------------------------------------------------------
 info "Done" 
 # ------------------------------------------------------------------------------

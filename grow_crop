@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ---------------------------------------------------------------------------
 # grow_crop - runs germinate on a specific seed and puts the result in
 #             the corresponding crop
@@ -20,19 +20,20 @@
 # Under each of these directories, we put a project specific directory that
 # holds the actual files. The naming convention for the project is:
 #
-# project.repo.dist.arch/
+# project.repo.rel.arch/
 #
 # project - the name of the project you want to generate crops for
 # repo    - the name of the repo you'll be pulling packages from
-# dist    - the distribution in the repo
+# rel     - the release in the repo
 # arch    - the architecture of the target
 #
 # This seems awfully complicated, but there's a good reason for it. In
 # the original use I had for a list of packages, I was creating a local
 # partial mirror of Debian Jessie for the armel architecture. It turns 
-# out that I actually needed to get packages from the official Debian
+# out that I also needed to get packages from the official Debian
 # repos as well as a third party repo. On top of that, the distribution
-# that I was targeting switched from `wheezy` to `jessie`. 
+# that I was targeting switched from `wheezy` to `jessie` - and I needed
+# to handle amd64 and armel variants.
 #
 # I realized that I might want to make local partial mirrors for different
 # projects I was working on, and maybe even for different architectures.
@@ -46,8 +47,16 @@
 
 set -e
 
-. ./bashtools/src/fmt
-. ./bashtools/src/checkutil
+# ---------------------------------------------------------------------------
+# Make sure we're being called as `grow_crop` and that the folders we need
+# exist
+
+SOURCE_ROOT="${BASH_SOURCE%/grow_crop}"
+
+. ${SOURCE_ROOT}/bashtools/src/fmt
+. ${SOURCE_ROOT}/bashtools/src/checkutil
+
+LOG_LEVEL="4"
 
 # -----------------------------------------------------------------------------
 
@@ -58,11 +67,6 @@ info "Executing $0"
 
 checknotuser "root"
 
-# ---------------------------------------------------------------------------
-# Make sure we're being called as `grow_crop` and that the folders we need
-# exist
-
-SOURCE_ROOT="${BASH_SOURCE%/grow_crop}"
 SEED="${SOURCE_ROOT}/seeds/$1"
 FARM="${SOURCE_ROOT}/farms/$1"
 CROP="${SOURCE_ROOT}/crops/$1"
@@ -83,28 +87,35 @@ checkemptyvar "CROP"
 
 . "${FARM}/conf"
 
-
 [[ -d "${CROP}" ]] || mkdir -p "${CROP}"
 [[ -d "${CROP}" ]] || fail "${CROP} -> cannot create crop directory"
 
 cd "${CROP}"
 
 checkemptyvar "MIRROR"
+checkemptyvar "PROJ"
+checkemptyvar "REPO"
 checkemptyvar "DIST"
+checkemptyvar "REL"
 checkemptyvar "ARCH"
 checkemptyvar "COMPONENTS"
 
-# NOTE WELL that we don't add quotes around $options because it might be
+# NOTE WELL that we don't add quotes around ${OPTIONS} because it might be
 #           a list of options. If you put quotes around it then it's passed
 #           to germinate as a single option that it can't understand
+#
+# NOTE WELL that germinate uses the term distribution to refer to what I am
+#           calling releases ${REL} in the scripts I use to build mirrors.
+#           We use dstribution ${DIST} to refer to the top level Linux
+#           distribution name, like debian or ubuntu.
 
 germinate -S "file://${PWD}/../../seeds/" \
           -s "$1"                         \
           -m "${MIRROR}"                  \
-          -d "${DIST}"                    \
+          -d "${REL}"                     \
           -a "${ARCH}"                    \
           -c "${COMPONENTS}"              \
-          $options
+              ${OPTIONS}
 
 # ------------------------------------------------------------------------------
 info "Done" 
