@@ -60,16 +60,17 @@ checkemptyvar "REL"
 checkemptyvar "ARCH"
 
 PRRA="${PROJ}.${REPO}.${REL}.${ARCH}"
+RRA="${REPO}.${REL}.${ARCH}"
 
 [[ "$1" = "${PRRA}"           ]] || fail "\"$1\" does not match conf \"${PRRA}"\"
 
-[[ -d "/srv/reprepro/${PRRA}" ]] || fail "\"/srv/reprepro/${PRRA}\" -> repo directory does not exist"
+[[ -d "/srv/reprepro/${RRA}" ]] || fail "\"/srv/reprepro/${RRA}\" -> repo directory does not exist"
 
 # ---------------------------------------------------------------------------
 # Now apply the magic formula to the crop to get a list of packages, but
 # first shift $1 (the farm name) out of the way...
 
-info "Creating package list for \"${PRRA}\""
+info "Creating package list for \"${RRA}\""
 
 shift
 
@@ -86,17 +87,23 @@ done
 
 # ---------------------------------------------------------------------------
 
-info "Writing package list to \"/srv/reprepro/${PRRA}/packages\""
+info "Writing package list to \"/srv/reprepro/${RRA}/packages\""
 
-echo -e "${PACKAGES}" > "/srv/reprepro/${PRRA}/packages" 
+[[ -e "/srv/reprepro/${RRA}/packages" ]] || touch "/srv/reprepro/${RRA}/packages"
+
+while read -r line; do
+    PACKAGES="${PACKAGES}${PACKAGES+\n}$line"
+done < "/srv/reprepro/${RRA}/packages"
+
+echo -e "${PACKAGES}" | sort -u > "/srv/reprepro/${RRA}/packages"
 
 # ---------------------------------------------------------------------------
 
-info "Updating packages for \"${REPO}\" - this may take a while"
+info "Updating packages for \"${RRA}\" - this may take a while"
 
-cd "/srv/reprepro/${PRRA}"
+cd "/srv/reprepro/${RRA}"
 
-reprepro -V update ${REL}
+reprepro -V update "${REL}"
 
 # ------------------------------------------------------------------------------
 info "Done" 

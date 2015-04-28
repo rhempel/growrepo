@@ -57,28 +57,29 @@ checkemptyvar "REL"
 checkemptyvar "ARCH"
 
 PRRA="${PROJ}.${REPO}.${REL}.${ARCH}"
+RRA="${REPO}.${REL}.${ARCH}"
 
 [[ "$1" = "${PRRA}"           ]] || fail "\"$1\" does not match conf \"${PRRA}"\"
 
-[[ -d "/srv/reprepro/${PRRA}" ]] && fail "\"/srv/reprepro/${PRRA}\" -> repo directory already exists"
+[[ -d "/srv/reprepro/${RRA}" ]] && fail "\"/srv/reprepro/${RRA}\" -> repo directory already exists"
 
 # ---------------------------------------------------------------------------
 # We can now start creating the directory/folder structure required by
 # reprepro - we'll fill in the templates with default values
 
-info "Creating \"/srv/reprepro/${PRRA}\""
+info "Creating \"/srv/reprepro/${RRA}\""
 
 for d in "conf" "gpg" "logs" "www"; do
-    mkdir -p "/srv/reprepro/${PRRA}/$d"
+    mkdir -p "/srv/reprepro/${RRA}/$d"
 done
 
-chmod 700 /srv/reprepro/${PRRA}/gpg
+chmod 700 /srv/reprepro/${RRA}/gpg
 
 # ---------------------------------------------------------------------------
 
-info "Creating \"/srv/reprepro/${PRRA}/conf/options\""
+info "Creating \"/srv/reprepro/${RRA}/conf/options\""
 
-cat <<EOF > "/srv/reprepro/${PRRA}/conf/options"
+cat <<EOF > "/srv/reprepro/${RRA}/conf/options"
 outdir +b/www
 logdir +b/logs
 gnupghome +b/gpg
@@ -86,22 +87,22 @@ EOF
 
 # ---------------------------------------------------------------------------
 
-info "Creating \"/srv/reprepro/${PRRA}/conf/distributions\""
+info "Creating \"/srv/reprepro/${RRA}/conf/distributions\""
 
-cat <<EOF > "/srv/reprepro/${PRRA}/conf/distributions"
+cat <<EOF > "/srv/reprepro/${RRA}/conf/distributions"
 Codename: ${REL}
 Architectures: ${ARCH}
 Description: ${PROJ} ${DESC}
 Components: main
-Update: ${PRRA}
+Update: ${RRA}
 EOF
 
 # ---------------------------------------------------------------------------
 
-info "Creating \"/srv/reprepro/${PRRA}/conf/updates\""
+info "Creating \"/srv/reprepro/${RRA}/conf/updates\""
 
-cat <<EOF > "/srv/reprepro/${PRRA}/conf/updates"
-Name: ${PRRA} 
+cat <<EOF > "/srv/reprepro/${RRA}/conf/updates"
+Name: ${RRA} 
 Method: ${MIRROR}
 VerifyRelease: ${GPG_KEY}
 Suite: ${REL}
@@ -120,7 +121,7 @@ gpg2 --keyserver "pgp.mit.edu" --recv-keys ${GPG_KEY}
 
 info "Exporting GPG key for \"${MIRROR}\""
 
-gpg2 --export ${GPG_KEY} | GNUPGHOME="/srv/reprepro/${PRRA}/gpg" gpg --import --no-permission-warning
+gpg2 --export ${GPG_KEY} | GNUPGHOME="/srv/reprepro/${RRA}/gpg" gpg --import --no-permission-warning
     
 # ------------------------------------------------------------------------------
 info "Done" 
