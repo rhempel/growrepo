@@ -1,5 +1,6 @@
 MIRROR="http://ev3dev.org/debian"
-GPG_KEY="93178A7C"
+REPO_GPG_KEY="93178A7C"
+SIGN_GPG_KEY="E7249370"
 PROJ="ev3dev"
 DESC="(required packages only)"
 REPO="ev3dev"
