@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# farm_all - Runs the complete farming cycle on all the farms
+#
+# usage: farm_all
+#
+# Copyright (C) 2014-2015 Ralph Hempel <rhempel@hempeldesigngroup.com>
+#
+# See LICENSE for https://github.com/rhempel/growrepo
+# -----------------------------------------------------------------------------
+
+set -e
+
+# ---------------------------------------------------------------------------
+# Make sure we're being called as `farm_all` and that the folders we need
+# exist
+
+SOURCE_ROOT="${BASH_SOURCE%/farm_all}"
+
+. ${SOURCE_ROOT}/bashtools/src/fmt
+. ${SOURCE_ROOT}/bashtools/src/checkutil
+
+LOG_LEVEL="4"
+
+# -----------------------------------------------------------------------------
+
+info "Executing $0"
+
+# -----------------------------------------------------------------------------
+# Check to make sure we are not running as the root or reprepro user
+
+checknotuser "root"
+checknotuser "reprepro"
+
+SEEDS="${SOURCE_ROOT}/seeds"
+FARMS="${SOURCE_ROOT}/farms"
+CROPS="${SOURCE_ROOT}/crops"
+
+checkemptyvar "SEEDS"
+checkemptyvar "FARMS"
+checkemptyvar "CROPS"
+
+[[ -d "${SEEDS}" ]] || fail "${SEEDS} -> seeds directory does not exist"
+[[ -d "${FARMS}" ]] || fail "${FARMS} -> farms directory does not exist"
+[[ -d "${CROPS}" ]] || fail "${CROPS} -> crops directory does not exist"
+
+# ---------------------------------------------------------------------------
+# For each subfolder in FARMS:
+#
+# If there's no silo yet, make_silo
+# Erase the previous crop
+# Grow a new crop
+# Harvest the new crop
+
+for farm in ${FARMS}/*; do
+    farm="${farm##*/}"
+
+    . "${FARMS}/${farm}/conf"
+
+    checkemptyvar "MIRROR"
+    checkemptyvar "PROJ"
+    checkemptyvar "REPO"
+    checkemptyvar "DIST"
+    checkemptyvar "REL"
+    checkemptyvar "ARCH"
+    checkemptyvar "COMPONENTS"
+
+    PRRA="${PROJ}.${REPO}.${REL}.${ARCH}"
+    RRA="${REPO}.${REL}.${ARCH}"
+
+    # -----------------------------------------------------------------------
+    # Erase the previous crop
+
+    rm -f "${CROPS}/${farm}/"*
+
+    # -----------------------------------------------------------------------
+    # If we don't already have one, make the silo
+
+    if [[ ! -d "/srv/reprepro/${RRA}" ]]; then
+        sudo -u reprepro ${SOURCE_ROOT}/make_silo ${PRRA}
+    fi 
+
+    # -----------------------------------------------------------------------
+    # Grow the new crop
+
+    ${SOURCE_ROOT}/grow_crop ${PRRA}
+
+    # -----------------------------------------------------------------------
+    # Harvest the crop
+
+    sudo -u reprepro ${SOURCE_ROOT}/harvest_crop ${PRRA} minimal required standard
+
+    # -----------------------------------------------------------------------
+    # Check for signing the crop
+
+    if [[ "/srv/reprepro/${RRA}/db/packages.db" -nt "/srv/reprepro/${RRA}/www/dists/${REL}/Release.gpg" ]]; then
+        ${SOURCE_ROOT}/sign_silo ${RRA}
+    fi
+done
+
+
+# ------------------------------------------------------------------------------
+info "Done" 
+# ------------------------------------------------------------------------------
+

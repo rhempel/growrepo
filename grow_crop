@@ -62,10 +62,13 @@ LOG_LEVEL="4"
 
 info "Executing $0"
 
+[[ -z "$1" ]] && fail "Usage: grow_crop project.repo.dist.arch"
+
 # -----------------------------------------------------------------------------
-# Check to make sure we are NOT running as the root user
+# Check to make sure we are not running as the root or reprepro user
 
 checknotuser "root"
+checknotuser "reprepro"
 
 SEED="${SOURCE_ROOT}/seeds/$1"
 FARM="${SOURCE_ROOT}/farms/$1"
@@ -74,8 +77,6 @@ CROP="${SOURCE_ROOT}/crops/$1"
 checkemptyvar "SEED"
 checkemptyvar "FARM"
 checkemptyvar "CROP"
-
-[[ -z "$1" ]] && fail "Usage: grow_crop project.repo.dist.arch"
 
 [[ -d "${SEED}"      ]] || fail "${SEED} -> seed directory does not exist"
 [[ -d "${FARM}"      ]] || fail "${FARM} -> farm directory does not exist"

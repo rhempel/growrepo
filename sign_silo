@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# sign_silo - Signs the silo you just harvested a crop into - note, this
+#             script must be run as a regular user with sudo privileges.
+#
+# usage: sign_silo repo.dist.arch
+#
+# NOTE - this script MUST be run as a regular user so that the ownership
+#        of the ttyp that is running the script can be temporarily assigned
+#        to the reprepro user. Why? Because otherwise the gpg-agent will
+#        not put the signing key passphrase up on the he `reprepro` user - use:
+#
+# Copyright (C) 2014-2015 Ralph Hempel <rhempel@hempeldesigngroup.com>
+#
+# See LICENSE for https://github.com/rhempel/growrepo
+# -----------------------------------------------------------------------------
+
+set -e
+
+# ---------------------------------------------------------------------------
+# Make sure we're being called as `sign_silo` and that the folders we need
+# exist
+
+SOURCE_ROOT="${BASH_SOURCE%/sign_silo}"
+
+. ${SOURCE_ROOT}/bashtools/src/fmt
+. ${SOURCE_ROOT}/bashtools/src/checkutil
+
+LOG_LEVEL="4"
+
+# -----------------------------------------------------------------------------
+
+info "Executing $0"
+
+[[ -z "$1" ]] && fail "Usage: sign_silo repo.rel.arch"
+
+# -----------------------------------------------------------------------------
+# Check to make sure we are not running as the root or reprepro user
+
+checknotuser "root"
+checknotuser "reprepro"
+
+RRA="$1"
+
+checkemptyvar "RRA"
+
+[[ -d "/srv/reprepro/${RRA}" ]] || fail "\"/srv/reprepro/${RRA}\" -> silo directory does not exist"
+
+# FARM="${SOURCE_ROOT}/farms/$1"
+# CROP="${SOURCE_ROOT}/crops/$1"
+# 
+# checkemptyvar "FARM"
+# checkemptyvar "CROP"
+# 
+# [[ -d "${FARM}" ]] || fail "\"${FARM}\" -> farm directory does not exist"
+# [[ -d "${CROP}" ]] || fail "\"${CROP}\" -> crop directory does not exist"
+
+# ------------------------------------------------------------------------------
+info "Assigning ownership of this $(tty) to user \"reprepro\""
+
+sudo chown reprepro $(tty)
+
+# ------------------------------------------------------------------------------
+info "Signing the \"${RRA}\" silo..."
+
+# sudo -u reprepro GNUPGHOME="/srv/reprepro/.gnupg" reprepro -b "/srv/reprepro/${RRA}" export
+sudo -u reprepro reprepro -b "/srv/reprepro/${RRA}" export
+
+# ------------------------------------------------------------------------------
+info "Restoring ownership of this $(tty) to user \"$(whoami)\""
+
+sudo chown $(whoami) $(tty)
+
+# ------------------------------------------------------------------------------
+info "Done" 
+# ------------------------------------------------------------------------------

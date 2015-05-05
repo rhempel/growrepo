@@ -20,8 +20,6 @@ set -e
 # Make sure we're being called as `make_silo` and that the folders we need
 # exist
 
-[[ -z "$1" ]] && fail "Usage: make_silo project.repo.rel.arch"
-
 SOURCE_ROOT="${BASH_SOURCE%/make_silo}"
 
 . ${SOURCE_ROOT}/bashtools/src/fmt
@@ -32,6 +30,8 @@ LOG_LEVEL="4"
 # -----------------------------------------------------------------------------
 
 info "Executing $0"
+
+[[ -z "$1" ]] && fail "Usage: make_silo project.repo.rel.arch"
 
 # -----------------------------------------------------------------------------
 # Check to make sure we are running as the reprepro user
@@ -44,6 +44,30 @@ checkemptyvar "FARM"
 
 [[ -d "${FARM}" ]] || fail "\"${FARM}\" -> farm directory does not exist"
 
+# ------------------------------------------------------------------------------
+# Note: This will create /srv/reprepro/.gnupg/gpg-agent.conf if it does not
+#       already exist - we need to do this early so that gpg-agent can be
+#       used to sign the repos later. This script seems to be the logical
+#       place to create the file - aminly because this script MUST be run
+#       as the reprepro user.
+#
+
+[[ -d "/srv/reprepro/.gnupg"                ]] || mkdir "/srv/reprepro/.gnupg"
+
+if [[ -e "/srv/reprepro/.gnupg/gpg-agent.conf" ]]; then
+    info "\"/srv/reprepro/.gnupg/gpg-agent.conf\" already exits"
+else
+    info "Creating \"/srv/reprepro/.gnupg/gpg-agent.conf\" ..."
+
+    cat <<EOF > "/srv/reprepro/.gnupg/gpg-agent.conf"
+pinentry-program /usr/bin/pinentry-curses
+default-cache-ttl 1800
+EOF
+
+    chmod 600 "/srv/reprepro/.gnupg/gpg-agent.conf"
+fi
+
+#
 # ---------------------------------------------------------------------------
 # Now source the project specific farm parameters, set up variables and 
 # run germinate - there are no default values, everything MUST be defined
@@ -59,7 +83,7 @@ checkemptyvar "ARCH"
 PRRA="${PROJ}.${REPO}.${REL}.${ARCH}"
 RRA="${REPO}.${REL}.${ARCH}"
 
-[[ "$1" = "${PRRA}"           ]] || fail "\"$1\" does not match conf \"${PRRA}"\"
+[[ "$1" = "${PRRA}"          ]] || fail "\"$1\" does not match conf \"${PRRA}"\"
 
 [[ -d "/srv/reprepro/${RRA}" ]] && fail "\"/srv/reprepro/${RRA}\" -> repo directory already exists"
 
@@ -69,11 +93,9 @@ RRA="${REPO}.${REL}.${ARCH}"
 
 info "Creating \"/srv/reprepro/${RRA}\""
 
-for d in "conf" "gpg" "logs" "www"; do
+for d in "conf" "logs" "www"; do
     mkdir -p "/srv/reprepro/${RRA}/$d"
 done
-
-chmod 700 /srv/reprepro/${RRA}/gpg
 
 # ---------------------------------------------------------------------------
 
@@ -82,7 +104,6 @@ info "Creating \"/srv/reprepro/${RRA}/conf/options\""
 cat <<EOF > "/srv/reprepro/${RRA}/conf/options"
 outdir +b/www
 logdir +b/logs
-gnupghome +b/gpg
 EOF
 
 # ---------------------------------------------------------------------------
@@ -93,8 +114,9 @@ cat <<EOF > "/srv/reprepro/${RRA}/conf/distributions"
 Codename: ${REL}
 Architectures: ${ARCH}
 Description: ${PROJ} ${DESC}
-Components: main
-Update: ${RRA}
+Components: ${COMPONENTS//,/ }
+Update: - ${RRA}
+SignWith: ${SIGN_GPG_KEY}
 EOF
 
 # ---------------------------------------------------------------------------
@@ -104,25 +126,21 @@ info "Creating \"/srv/reprepro/${RRA}/conf/updates\""
 cat <<EOF > "/srv/reprepro/${RRA}/conf/updates"
 Name: ${RRA} 
 Method: ${MIRROR}
-VerifyRelease: ${GPG_KEY}
+VerifyRelease: ${REPO_GPG_KEY}
 Suite: ${REL}
 Components: ${COMPONENTS//,/ }
 Architectures: ${ARCH}
 FilterList: purge ../packages
+GetInRelease: no
 EOF
 
 # ------------------------------------------------------------------------------
+# Note: This will create /srv/reprepro/.gnupg if it does not already exist
 
 info "Getting GPG key for \"${MIRROR}\""
 
-gpg2 --keyserver "pgp.mit.edu" --recv-keys ${GPG_KEY}
+gpg2 --keyserver "pgp.mit.edu" --recv-keys ${REPO_GPG_KEY}
 
-# ------------------------------------------------------------------------------
-
-info "Exporting GPG key for \"${MIRROR}\""
-
-gpg2 --export ${GPG_KEY} | GNUPGHOME="/srv/reprepro/${RRA}/gpg" gpg --import --no-permission-warning
-    
-# ------------------------------------------------------------------------------
+ ------------------------------------------------------------------------------
 info "Done" 
 # ------------------------------------------------------------------------------

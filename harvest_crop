@@ -20,8 +20,6 @@ set -e
 # Make sure we're being called as `harvest_crop` and that the folders we need
 # exist
 
-[[ -z "$1" ]] && fail "Usage: harvest_crop project.repo.rel.arch crop[s]"
-
 SOURCE_ROOT="${BASH_SOURCE%/harvest_crop}"
 
 . ${SOURCE_ROOT}/bashtools/src/fmt
@@ -32,6 +30,8 @@ LOG_LEVEL="4"
 # -----------------------------------------------------------------------------
 
 info "Executing $0"
+
+[[ -z "$1" ]] && fail "Usage: harvest_crop project.repo.rel.arch crop[s]"
 
 # -----------------------------------------------------------------------------
 # Check to make sure we are running as the reprepro user
@@ -64,7 +64,7 @@ RRA="${REPO}.${REL}.${ARCH}"
 
 [[ "$1" = "${PRRA}"           ]] || fail "\"$1\" does not match conf \"${PRRA}"\"
 
-[[ -d "/srv/reprepro/${RRA}" ]] || fail "\"/srv/reprepro/${RRA}\" -> repo directory does not exist"
+[[ -d "/srv/reprepro/${RRA}" ]] || fail "\"/srv/reprepro/${RRA}\" -> silo directory does not exist"
 
 # ---------------------------------------------------------------------------
 # Now apply the magic formula to the crop to get a list of packages, but
@@ -101,9 +101,7 @@ echo -e "${PACKAGES}" | sort -u > "/srv/reprepro/${RRA}/packages"
 
 info "Updating packages for \"${RRA}\" - this may take a while"
 
-cd "/srv/reprepro/${RRA}"
-
-reprepro -V update "${REL}"
+reprepro -V --noskipold -b "/srv/reprepro/${RRA}" update "${REL}"
 
 # ------------------------------------------------------------------------------
 info "Done" 
