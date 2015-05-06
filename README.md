@@ -14,7 +14,6 @@ packages in your development environment. We assume that you are comfortable wit
 1. Installing Linux software from packages
 1. Setting up a [VirtualBox][VirtualBox] VM
 1. Setting up a web server
-1. Setting up `nfs` to share folders
 
 ## Set Up A Local Package Repository
 
@@ -24,7 +23,7 @@ near as complex as it sounds because of two tools that you can install on your
 host machine - `germinate` and `reprepro`.
 
 The [`germinate`][germinate] tool takes a list of the top level packages that you want
-to have on the SD card image and generates a list of all the required dependencies.
+to have on a disk image and generates a list of all the required dependencies.
 We'll massage the output of `germinate` to create a package list that can
 be used to set up the local repositories using `reprepro`. Let's start with
 the `germinate` installation.
@@ -61,6 +60,14 @@ and creates output in a matching folder in the `crops` directory. You
 can delete the `crops` folder any time you like, the `grow_crop` script will
 regenerate the `crops` file structure as needed.
 
+I've provided an assorment of individual scripts that are used to build the
+package lists and populate the partial repositories - but when you have a lot
+of farms to manage, that gets tiresome. There is also a script that
+can be run to update ALL of the repositories, it takes a while bt you don't really
+need to run it that often.
+
+### Generating the seeds for ev3dev
+
 The easiest way to get the folders all set up for `ev3dev` is to grab the
 latest release from the [`growrepo`][growrepo] repository on GitHub - it
 contains some of the `seeds` and `farms` that I created. You can use them
@@ -79,6 +86,8 @@ blacklist:
 supported:
 ```
 
+Currently, I only use the `required`, `minimal`, and `standard` seed files.
+
 Each of the files in the specific `seeds` folder contains a list of packages
 that looks something like this:
 
@@ -90,10 +99,10 @@ that looks something like this:
 ```
 
 Note the ` * ` at the beginning of each line - in particular the space in
-front of the asterix! 
+front of the asterisk! 
 
 By convention, the `standard` package list is all the files required to
-pull together a minimal working installation - and for `ev3dev` that's the
+pull together a working installation - and for `ev3dev` that's the
 `packages` list. Where do we get this list of packages? For `ev3dev` it's from
 the [`packages` folder in `ev3dev-jessie` in the `brickstrap` package][brickstrap-ev3dev-jessie].
 
@@ -136,10 +145,6 @@ folder. These files will contain formatted output that contains all the packages
 need for each crop in `required`, and incrementally more packages in `minimal`
 and `standard`.
 
-The one we're most interested in is `crops/ev3dev.ev3dev.jessie.armel/all` - it's
-got all of the packages that are available from the mirror specified in
-`farms/ev3dev.ev3dev.jessie.armel/conf`.
-
 We'll need the same package list files for the `ev3dev.debian.jessie.armel` farm. When
 `grow_crop` is executed on that farm, we'll get the list of packages that are required
 to build the `ev3dev` root file system from the official Debian repositories.
@@ -178,21 +183,6 @@ sudo adduser username reprepro
 
 You'll need to log out and log back in for the group changes to take effect - sorry.
 
-For the following sections on setting up `reprepro`, you'll need to become
-the `reprepro` user, but that user was configured with no login privileges.
-We can do some `sudo` magic to work around that - note that your shell
-prompt (if you're using the default that comes with most Linux distributions)
-will have changed:
-
-```
-userid@machine:~$ sudo -u reprepro bash
-reprepro@machine:/home/userid$ cd $HOME
-reprepro@machine:~$ pwd
-/srv/reprepro
-reprepro@machine:~$ exit
-userid@machine:~$
-```
-
 ### Create Folder Structure For Each Local Respository 
 
 For `ev3dev` development, we're going to create two repositories, one for 
@@ -200,138 +190,71 @@ the `ev3dev.org` packages and another for the standard Debian packages.
 You can guess that to make things easy, the repository names will be
 exactly the same as the `farms` that we grow the `crops` in.
 
-Remember to become the `reprepro` user and then create the following
-directories:
+These repositories will live in the `/srv/reprepro` folder, and to
+extend the farm metaphor just a bit further, we're going to call
+the repository a "silo".
+
+There's a script to make a silo, and it warns you if the silo already
+exists. The script must be run as `reprepro`, like this:
 
 ```
-for d in "conf" "gpg" "logs" "www"; do
-    mkdir -p "/srv/reprepro/ev3dev.debian.jessie.armel/$d"
-    mkdir -p "/srv/reprepro/ev3dev.ev3dev.jessie.armel/$d"
-done
-
-chmod 775 /srv/reprepro/ev3dev.debian.jessie.armel
-chmod 775 /srv/reprepro/ev3dev.ev3dev.jessie.armel
-
-chmod 775 /srv/reprepro/ev3dev.debian.jessie.armel/logs
-chmod 775 /srv/reprepro/ev3dev.ev3dev.jessie.armel/logs
-
-chmod 775 /srv/reprepro/ev3dev.debian.jessie.armel/www
-chmod 775 /srv/reprepro/ev3dev.ev3dev.jessie.armel/www
-
-chmod 700 /srv/reprepro/ev3dev.debian.jessie.armel/gpg
-chmod 700 /srv/reprepro/ev3dev.ev3dev.jessie.armel/gpg
-
+sudo -u reprepro make_silo ev3dev.ev3dev.jessie.armel
+sudo -u reprepro make_silo ev3dev.debian.jessie.armel
 ```
 
-Note that the `conf` directories are not group writeable, but `logs` and `www`
-are - that's to avoid accidentally clobbering the configuration as a plain 
-user - but you can always regenerate the `www` contents.
+This will manually create the silo we need, if you have a lot of silos
+to manage the `farm_all` script that comes later is your friend.
 
-Now create the file `conf/options` like this"
+The main thing to remember is that the `farms/proj.dist.rel.arch/conf`
+file is where you set up the silo-specific values that may need to be
+customized. The most likely candidates for customization are:
 
-```
-cat <<EOF > "/srv/reprepro/ev3dev.debian.jessie.armel/conf/options"
-outdir +b/www
-logdir +b/logs
-gnupghome +b/gpg
-EOF
-    
-cat <<EOF > "/srv/reprepro/ev3dev.ev3dev.jessie.armel/conf/options"
-outdir +b/www
-logdir +b/logs
-gnupghome +b/gpg
-EOF
-```
+- `MIRROR` for settig the location of the repo you want to mirror
+- `REPO_GPG_KEY` that repositories signing key, so you can verify it
+- `SIGN_GPG_KEY` your private signing key
 
-and set up the ev3dev repository `conf` files:
+### Your Private Signing Key
 
-```
-cat <<EOF > "/srv/reprepro/ev3dev.ev3dev.jessie.armel/conf/distributions"
-Codename: jessie
-Architectures: armel
-Description: ev3dev (required packages only)
-Components: main
-Update: ev3dev-jessie-update
-EOF
-    
-cat <<EOF > "/srv/reprepro/ev3dev.ev3dev.jessie.armel/conf/options"
-outdir +b/www
-logdir +b/logs
-gnupghome +b/gpg
-EOF
+The `apt` system that Debian based systems rely on to install packages
+has built-in security that relies on `gpg` encryption. The `Release` 
+file is generally signed with a private signing key and is saved
+as `Release.gpg`. That lets `apt` verify that the files from this
+repository are trusted.
 
-cat <<EOF > "/srv/reprepro/ev3dev.ev3dev.jessie.armel/conf/updates"
-Name:  ev3dev-jessie-update
-Method: http://ev3dev.org/debian
-VerifyRelease: 93178A7C
-Suite: jessie
-Components: main
-Architectures: armel
-FilterList: purge ../packages
-EOF
-```
+Of course, there's a bit of work to do to create a master key and
+subkeys for signing, encryption, and authentication. And then you
+need to put the public part of the keyset up on a keyserver.
 
-I'm using the University of Waterloo Debian mirror locations here, you
-should use the closest mirror:
+Rather than document this here, I'll [refer you to the excellent 
+guide here][http://spin.atomicobject.com/2013/11/24/secure-gpg-keys-guide/]
+
+Once you have your keyset generated, there is one step to do
+that is particular to this process. You need to export your 
+private keys and import them into the `reprepro` user's keychain.
 
 ```
-cat <<EOF > "/srv/reprepro/ev3dev.debian.jessie.armel/conf/distributions"
-Codename: jessie
-Architectures: armel
-Description: debian (required packages only)
-Components: main contrib non-free
-Update: debian-jessie-update
-EOF
-
-cat <<EOF > "/srv/reprepro/ev3dev.debian.jessie.armel/conf/options"
-outdir +b/www
-logdir +b/logs
-gnupghome +b/gpg
-EOF
-
-cat <<EOF > "/srv/reprepro/ev3dev.debian.jessie.armel/conf/updates"
-Name:  debian-jessie-update
-Method: http://mirror.csclub.uwaterloo.ca/debian
-VerifyRelease: 8B48AD6246925553
-Suite: jessie
-Components: main contrib non-free
-Architectures: armel
-FilterList: purge ../packages
-EOF
+gpg --armour --export-secret-keys | sudo -u reprepro gpg --import
 ```
 
-### Get the GPG Keys For Each Repository
-
-We are (hopefully) still the `reprepro` user - remember that the `$HOME`
-for this user is `/srv/reprepro` and that's where the `.gnupg` directory
-will get created. Don't worry, only the `reprepro` user has access to
-it.
-
-Pulling in and saving the keys for each repository is simple:
+Check that it worked like so:
 
 ```
-pushd .
-cd /srv/reprepro
+sudo -u reprepro gpg -K
 
-# Get the ev3dev.org public signing key
-    
-gpg2 --keyserver pgp.mit.edu --recv-keys 2B210565
-cd /srv/reprepro/ev3dev.ev3dev.jessie.armel
-gpg2 --export 2B210565 | GNUPGHOME=gpg gpg --import --no-permission-warning
-    
-# Get the Debian Jessie public signing key
-    
-gpg2 --keyserver pgp.mit.edu --recv-keys 8B48AD6246925553
-cd /srv/reprepro/ev3dev.debian.jessie.armel
-gpg2 --export 8B48AD6246925553 | GNUPGHOME=gpg gpg --import --no-permission-warning
-
-popd
+/srv/reprepro/.gnupg/secring.gpg
+--------------------------------
+sec#  4096R/FA852339 2014-08-06 [expires: 2019-08-05]
+uid                  Ralph Hempel <rhempel@hempeldesigngroup.com>
+ssb   4096R/E7249370 2014-08-07
+ssb   4096R/0148B07D 2014-08-07
+ssb   4096R/79A9DE19 2014-08-07
 ```
 
-That's it, now we can go back to being ourselves, just exit the current shell:
+Don;t worry, I'm not giving anything away here - in fact you can grab
+my public keys anytime like this:
 
 ```
-exit
+gpg --keyserver "pgp.mit.edu" --recv-keys FA852339
 ```
 
 ### Harvesting Crops and Populating a Local Mirror
@@ -347,13 +270,34 @@ if you ever want to automate things, it's easier to always run the
 Assuming we're in the `growrepo` script directory
 
 ```
-sudo -u reprepro bash
-
-./harvest_crop ev3dev.ev3dev.jessie.arm required minimal standard
-./harvest_crop ev3dev.debian.jessie.arm required minimal standard
-
-exit
+sudo -u reprepro ./harvest_crop ev3dev.ev3dev.jessie.arm required minimal standard
+sudo -u reprepro ./harvest_crop ev3dev.debian.jessie.arm required minimal standard
 ```
+
+### Working Smart, Not Hard
+
+These steps are not too onerous, but if you do them frequently they
+get boring, and if you do them infrequently you'll have to reread this
+tutorial.
+
+So in the interest of avoiding both problems, I created `farm_all` - a
+scripts that buzzes through the `farms` directory and does the following:
+
+- Make a new silo for the farm, if it does not already exist
+- Wipe out the previous crop
+- Grow a new crop
+- Harvest the new crop and update the packages in the silo
+- Sign the silo if it has changed
+
+Run it like this as a regular user, you will be prompted for your password
+as some of the scripts will `sudo -u reprepro` as needed.
+
+```
+./farm-all
+```
+
+If a repo changes at all, you'll be promted to re-sign it, so that's a bit
+of manual labour, but the rest is pretty much automated.
 
 ## Configuring Your Webserver To Serve Packages
 
@@ -383,7 +327,7 @@ the root directory for the content. These stanzas handle it:
 ```
 VirtualHost {
 	Hostname = debian.jessie.armel.domain.com
-    	WebsiteRoot = /srv/reprepro/ev3dev.debian.jessie.armel/www
+    	WebsiteRoot = /srv/reprepro/debian.jessie.armel/www
     	ShowIndex = yes
      	AccessLogfile = /var/log/hiawatha/debian-access.log
      	ErrorLogfile = /var/log/hiawatha/debian-error.log
@@ -392,7 +336,7 @@ VirtualHost {
     
 VirtualHost {
     	Hostname = ev3dev.jessie.armel.domain.com
-    	WebsiteRoot = /srv/reprepro/ev3dev.ev3dev.jessie.armel/www
+    	WebsiteRoot = /srv/reprepro/ev3dev.jessie.armel/www
     	ShowIndex = yes
      	AccessLogfile = /var/log/hiawatha/ev3dev-access.log
      	ErrorLogfile = /var/log/hiawatha/ev3dev-error.log
@@ -401,7 +345,10 @@ VirtualHost {
 ```
 
 No magic here - you'll notice of course that the `farm` name
-shows up again in the `Hostname` definition, and in the `WebsiteRoot`. 
+shows up again in the `Hostname` definition, and without the
+project name in the `WebsiteRoot`. That's in case you have 
+multiple projects that use the same repository mirror.
+
 Remember to chage `domain.com` to your local domain name.
 
 The last step is to set up your local DNS server to direct the
