@@ -2,7 +2,13 @@
  * git
  * kernel-package
  * devscripts
+ * build-essential
  * ncurses-dev
  * u-boot-tools
+ * libc6
  * fakeroot
  * bc
+ * qemu-user
+ * multistrap
+ * proot
+ * libguestfs-tools
