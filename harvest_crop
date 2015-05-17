@@ -87,13 +87,16 @@ done
 
 # ---------------------------------------------------------------------------
 
-info "Writing package list to \"/srv/reprepro/${RRA}/packages\""
+info "Building package list for \"/srv/reprepro/${RRA}/packages\""
 
 [[ -e "/srv/reprepro/${RRA}/packages" ]] || touch "/srv/reprepro/${RRA}/packages"
 
 while read -r line; do
-    PACKAGES="${PACKAGES}${PACKAGES+\n}$line"
+   PACKAGES="${PACKAGES}${PACKAGES+\n}$line"
 done < "/srv/reprepro/${RRA}/packages"
+
+# ---------------------------------------------------------------------------
+info "Writing \"/srv/reprepro/${RRA}/packages\""
 
 echo -e "${PACKAGES}" | sort -u > "/srv/reprepro/${RRA}/packages"
 

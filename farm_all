@@ -44,6 +44,8 @@ checkemptyvar "CROPS"
 [[ -d "${FARMS}" ]] || fail "${FARMS} -> farms directory does not exist"
 [[ -d "${CROPS}" ]] || fail "${CROPS} -> crops directory does not exist"
 
+MODE="$1"
+
 # ---------------------------------------------------------------------------
 # For each subfolder in FARMS:
 #
@@ -71,7 +73,7 @@ for farm in ${FARMS}/*; do
     # -----------------------------------------------------------------------
     # Erase the previous crop
 
-    rm -f "${CROPS}/${farm}/"*
+    [[ "clean" == "${MODE}" ]] && rm -f "${CROPS}/${farm}/"*
 
     # -----------------------------------------------------------------------
     # If we don't already have one, make the silo
@@ -83,12 +85,14 @@ for farm in ${FARMS}/*; do
     # -----------------------------------------------------------------------
     # Grow the new crop
 
-    ${SOURCE_ROOT}/grow_crop ${PRRA}
+    ${SOURCE_ROOT}/grow_crop ${PRRA} ${MODE}
 
     # -----------------------------------------------------------------------
     # Harvest the crop
 
+    sudo chown reprepro $(tty)
     sudo -u reprepro ${SOURCE_ROOT}/harvest_crop ${PRRA} minimal required standard
+    sudo chown $(whoami) $(tty)
 
     # -----------------------------------------------------------------------
     # Check for signing the crop
@@ -97,7 +101,6 @@ for farm in ${FARMS}/*; do
         ${SOURCE_ROOT}/sign_silo ${RRA}
     fi
 done
-
 
 # ------------------------------------------------------------------------------
 info "Done" 

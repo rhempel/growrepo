@@ -46,15 +46,6 @@ checkemptyvar "RRA"
 
 [[ -d "/srv/reprepro/${RRA}" ]] || fail "\"/srv/reprepro/${RRA}\" -> silo directory does not exist"
 
-# FARM="${SOURCE_ROOT}/farms/$1"
-# CROP="${SOURCE_ROOT}/crops/$1"
-# 
-# checkemptyvar "FARM"
-# checkemptyvar "CROP"
-# 
-# [[ -d "${FARM}" ]] || fail "\"${FARM}\" -> farm directory does not exist"
-# [[ -d "${CROP}" ]] || fail "\"${CROP}\" -> crop directory does not exist"
-
 # ------------------------------------------------------------------------------
 info "Assigning ownership of this $(tty) to user \"reprepro\""
 
@@ -63,7 +54,6 @@ sudo chown reprepro $(tty)
 # ------------------------------------------------------------------------------
 info "Signing the \"${RRA}\" silo..."
 
-# sudo -u reprepro GNUPGHOME="/srv/reprepro/.gnupg" reprepro -b "/srv/reprepro/${RRA}" export
 sudo -u reprepro reprepro -b "/srv/reprepro/${RRA}" export
 
 # ------------------------------------------------------------------------------

@@ -82,6 +82,8 @@ checkemptyvar "CROP"
 [[ -d "${FARM}"      ]] || fail "${FARM} -> farm directory does not exist"
 [[ -e "${FARM}/conf" ]] || fail "${FARM}/conf -> farm/conf does not exist"
 
+MODE="$2"
+
 # ---------------------------------------------------------------------------
 # Now source the project specific farm parameters, set up variables and 
 # run germinate - there are no default values, everything MUST be defined
@@ -91,15 +93,13 @@ checkemptyvar "CROP"
 [[ -d "${CROP}" ]] || mkdir -p "${CROP}"
 [[ -d "${CROP}" ]] || fail "${CROP} -> cannot create crop directory"
 
-cd "${CROP}"
-
-checkemptyvar "MIRROR"
 checkemptyvar "PROJ"
 checkemptyvar "REPO"
 checkemptyvar "DIST"
 checkemptyvar "REL"
 checkemptyvar "ARCH"
 checkemptyvar "COMPONENTS"
+checkemptyvar "MIRROR"
 
 # NOTE WELL that we don't add quotes around ${OPTIONS} because it might be
 #           a list of options. If you put quotes around it then it's passed
@@ -107,8 +107,10 @@ checkemptyvar "COMPONENTS"
 #
 # NOTE WELL that germinate uses the term distribution to refer to what I am
 #           calling releases ${REL} in the scripts I use to build mirrors.
-#           We use dstribution ${DIST} to refer to the top level Linux
+#           We use distribution ${DIST} to refer to the top level Linux
 #           distribution name, like debian or ubuntu.
+
+pushd "${CROP}"
 
 germinate -S "file://${PWD}/../../seeds/" \
           -s "$1"                         \
@@ -117,6 +119,54 @@ germinate -S "file://${PWD}/../../seeds/" \
           -a "${ARCH}"                    \
           -c "${COMPONENTS}"              \
               ${OPTIONS}
+
+popd
+
+# ---------------------------------------------------------------------------
+# The germinate process grabs a file from the repository on the web for
+# the "main" component. We need to parse this file and find all of the
+# packages with priority required and add them to the required seed file.
+#
+# NOTE - this overwrites anything in the required seed file!
+
+if [[ "clean" == "${MODE}" ]]; then
+
+    # -----------------------------------------------------------------------
+    info "Looking for the main Packages file"
+
+    PackagePAT="^Package: .*$"
+    RequiredPAT="^Priority: required$"
+
+    for file in ${CROP}/*_main_Packages; do
+        info "Parsing package control file \"${file}\""
+  
+        while read -r line; do
+            [[ $line =~ $PackagePAT  ]] && p=${line##Package: }
+            [[ $line =~ $RequiredPAT ]] && REQUIRED="${REQUIRED}${REQUIRED+\n} * $p"
+        done < "${file}"
+    done
+
+    # ---------------------------------------------------------------------------
+    info "Writing \"${SEED}/required\""
+
+    echo -e "${REQUIRED}" | sort -u > "${SEED}/required"
+
+    # ---------------------------------------------------------------------------
+    # Now run germinate again so we get updated dependencies for all of the
+    # required packages we just added
+
+    pushd "${CROP}"
+
+    germinate -S "file://${PWD}/../../seeds/" \
+              -s "$1"                         \
+              -m "${MIRROR}"                  \
+              -d "${REL}"                     \
+              -a "${ARCH}"                    \
+              -c "${COMPONENTS}"              \
+                  ${OPTIONS}
+
+    popd
+fi
 
 # ------------------------------------------------------------------------------
 info "Done" 
