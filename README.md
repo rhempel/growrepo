@@ -5,8 +5,6 @@ A framework for using `germinate` and `reprepro` to create partial mirrors of De
 For a full description on how to use these scripts, go to the tutorial on [setting up the ev3dev
 build ecosystem][ev3dev-ecosystem].
 
-[ev3dev-ecosystem]: <http://www.ev3dev.org/docs/devtools/setting-up-the-ev3dev-build-ecosystem/>
-
 This is a set of notes that are helpful to get started using the [`germinate`] and [`reprepro`]
 packages in your development environment. We assume that you are comfortable with:
 
@@ -44,7 +42,9 @@ subset of all the available Debian packages.
 I've extended the metaphor a bit further because I actually need to create
 a variety of package lists that satisfy different target requirements, such as:
 
-- The official Debian package repository (i386 amd64)
+- The official Debian Jessie package repository (i386 amd64)
+- The official Ubuntu Trusty package repository (i386 amd64)
+- The offical Trusty Updates and Security repos (amd64)
 - The ev3dev specific package repository (amd64 armel)
 - The third party repos for other packages (i386 amd64 armel)
 
@@ -52,7 +52,8 @@ These repositories are accessed through different URLs when
 using `apt-get`, so I've added the concept of _farms_ to
 the metaphor. Each farm stores a `conf` file that is used to
 tell `germinate` where it should try to get the package dependency
-files that it needs.
+files that it needs, and where on our local machine the partial
+repository will be created.
 
 The whole thing is tied together by a script called `grow_crop` - it takes 
 the name of a farm (which matches the name of the seed directory)
@@ -60,10 +61,10 @@ and creates output in a matching folder in the `crops` directory. You
 can delete the `crops` folder any time you like, the `grow_crop` script will
 regenerate the `crops` file structure as needed.
 
-I've provided an assorment of individual scripts that are used to build the
+I've provided an assortment of individual scripts that are used to build the
 package lists and populate the partial repositories - but when you have a lot
 of farms to manage, that gets tiresome. There is also a script that
-can be run to update ALL of the repositories, it takes a while bt you don't really
+can be run to update ALL of the repositories, it takes a while but you don't
 need to run it that often.
 
 ### Generating the seeds for ev3dev
@@ -111,24 +112,6 @@ location, and that I'm currently in `growrepo` folder, I do something like this
 to create the package lists:
 
 ```
-cat ../brickstrap/ev3dev-jessie/packages/base        \
-    | sed 's/^/ * /' > ./seeds/ev3dev.ev3dev.jessie.armel/required
-
-cat ../brickstrap/ev3dev-jessie/packages/audio       \
-    ../brickstrap/ev3dev-jessie/packages/filesystems \
-    ../brickstrap/ev3dev-jessie/packages/firmware    \
-    ../brickstrap/ev3dev-jessie/packages/graphics    \
-    ../brickstrap/ev3dev-jessie/packages/network     \
-    ../brickstrap/ev3dev-jessie/packages/utils       \
-    | sed 's/^/ * /' > ./seeds/ev3dev.ev3dev.jessie.armel/minimal
-
-cat ../brickstrap/ev3dev-jessie/packages/programming-languages \
-    | sed 's/^/ * /' > ./seeds/ev3dev.ev3dev.jessie.armel/standard
-```
-
-We could have been a little less precise and just put everything into standard, like this:
-
-```
 cat ../brickstrap/ev3dev-jessie/packages/* \
     | sed 's/^/ * /' > ./seeds/ev3dev.ev3dev.jessie.armel/standard
 ```
@@ -161,6 +144,17 @@ cd ..
 ./grow_crop ev3dev.debian.jessie.armel
 ```
 
+One more step here - we need to create a package list for all of the
+`essential` and `required` packages in the main `Packages` file, there's
+a little script to handle that called `find_seeds` that is used like 
+this:
+
+```
+./find_seeds ev3dev.debian.jessie.armel
+```
+
+You only need to do it for main distribution repositories.
+
 ## Set Up The reprepro System
 
 Now we can focus on setting up [`reprepro`][reprepro] which is really not
@@ -168,6 +162,10 @@ very difficult at all. Recall that when we set up the `germinate`
 ecosystem, we used the idea of "farms" to grow the package lists. We will
 re-use this idea and give the local repositories their own directories - and
 the directory name will be the same as the name of the farm.
+
+```
+sudo apt-get --no-install-recommends install reprepro
+```
 
 Using the Debian conventions, the top level repository mirror folders will
 be stored in the `/srv/reprepro/` directory. We don't strictly need it
@@ -185,10 +183,11 @@ You'll need to log out and log back in for the group changes to take effect - so
 
 ### Create Folder Structure For Each Local Respository 
 
-For `ev3dev` development, we're going to create two repositories, one for 
-the `ev3dev.org` packages and another for the standard Debian packages.
-You can guess that to make things easy, the repository names will be
-exactly the same as the `farms` that we grow the `crops` in.
+For `ev3dev` development, we're going to create a bunch of repositories.
+Some are for the `ev3dev.org` packages that we'll assemble and put on
+the SD card for the EV3, and the rest are for setting up the ev3dev 
+developmnent machine. The name of the repository is specified in the
+corresponding farm's `conf` file.
 
 These repositories will live in the `/srv/reprepro` folder, and to
 extend the farm metaphor just a bit further, we're going to call
@@ -226,7 +225,7 @@ subkeys for signing, encryption, and authentication. And then you
 need to put the public part of the keyset up on a keyserver.
 
 Rather than document this here, I'll [refer you to the excellent 
-guide here][http://spin.atomicobject.com/2013/11/24/secure-gpg-keys-guide/]
+guide here][gpgKeyGuide].
 
 Once you have your keyset generated, there is one step to do
 that is particular to this process. You need to export your 
@@ -236,7 +235,7 @@ private keys and import them into the `reprepro` user's keychain.
 gpg --armour --export-secret-keys | sudo -u reprepro gpg --import
 ```
 
-Check that it worked like so:
+Check that it worked like this example:
 
 ```
 sudo -u reprepro gpg -K
@@ -250,7 +249,7 @@ ssb   4096R/0148B07D 2014-08-07
 ssb   4096R/79A9DE19 2014-08-07
 ```
 
-Don;t worry, I'm not giving anything away here - in fact you can grab
+Don't worry, I'm not giving anything away here - in fact you can grab
 my public keys anytime like this:
 
 ```
@@ -299,6 +298,13 @@ as some of the scripts will `sudo -u reprepro` as needed.
 If a repo changes at all, you'll be promted to re-sign it, so that's a bit
 of manual labour, but the rest is pretty much automated.
 
+If you want to grab an updated package list from each of your source repos, then
+just run
+
+```
+./farm-all clean
+```
+
 ## Configuring Your Webserver To Serve Packages
 
 As discussed near the beginning of this tutorial, I happen to like
@@ -342,6 +348,8 @@ VirtualHost {
      	ErrorLogfile = /var/log/hiawatha/ev3dev-error.log
     	FollowSymlinks = yes
 }
+
+...
 ```
 
 No magic here - you'll notice of course that the `farm` name
@@ -369,6 +377,10 @@ Of course, substitute your actual domain name for `domain.com`.
 Point your webserver at `debian.jessie.armel.domain.com:8080` and you
 should see a directory listing with `dists/` and `pool/` in it.
 
+On your ev3dev development machine, you'll need to set up `/etc/hosts` to
+have the local DNS settings for all your repositories. Fortunately, this
+is all taken care of automatically if you use my [pxeBoot scripts][pxeBoot].
+
 ## Conclusion
 
 If you've followed along this far and had success, then give yourself
@@ -382,7 +394,11 @@ SD card image for `ev3dev`.
 [brickstrap]: <https://github.com/ev3dev/brickstrap>
 [germinate]: <http://manpages.ubuntu.com/manpages/utopic/en/man1/germinate.1.html>
 [growrepo]: <https://github.com/rhempel/growrepo>
+[pxeBoot]: <https://github.com/rhempel/pxeBoot>
 [reprepro]: <http://mirrorer.alioth.debian.org>
+[ev3dev-ecosystem]: <http://www.ev3dev.org/docs/devtools/setting-up-the-ev3dev-build-ecosystem/>
+
+[gpgKeyGuide]: <http://spin.atomicobject.com/2013/11/24/secure-gpg-keys-guide>
 
 [Hiawatha]: <https://www.hiawatha-webserver.org/>
 [VirtualBox]: <https://www.virtualbox.org/>
