@@ -1,7 +1,10 @@
- * brickman
+ * base-files
  * ev3dev-base
- * linux-image-ev3dev
- * locales
- * plymouth
- * systemd-sysv
- * udev
+ * ev3dev-bluetooth
+ * ev3dev-console
+ * ev3dev-flash-kernel
+ * ev3dev-gadget
+ * ev3dev-i2c
+ * ev3dev-leds
+ * ev3dev-ports
+ * ev3dev-uart

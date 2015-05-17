@@ -1,6 +1,35 @@
+ * apt
+ * conspy
+ * dosfstools
+ * kmod
+ * ntp
+ * parted
+ * procps
+ * psmisc
+ * sudo
  * alsa-utils
  * beep
  * espeak
+ * brickman
+ * ev3dev-base
+ * dphys-swapfile
+ * linux-image-ev3dev-ev3
+ * libpam-systemd
+ * locales
+ * systemd-sysv
+ * udev
+ * gawk
+ * golang-go
+ * guile-1.8
+ * lua5.2
+ * python
+ * python3
+ * python-gobject
+ * python-pyudev
+ * nodejs
+ * nodejs-legacy
+ * npm
+ * ruby
  * nfs-common
  * smbnetfs
  * sshfs
@@ -9,6 +38,7 @@
  * firmware-realtek
  * fbcat
  * netpbm
+ * avahi-daemon
  * connman
  * ethtool
  * ev3dev-connman-config
@@ -17,10 +47,13 @@
  * iptables
  * iputils-ping
  * isc-dhcp-client
+ * libnss-mdns
  * libnss-myhostname
+ * libnss-winbind
  * netbase
  * netcat-openbsd
  * net-tools
+ * samba
  * ssh
  * wpasupplicant
  * console-setup
@@ -32,3 +65,10 @@
  * usbutils
  * vim
  * wget
+
+ * libgee-0.8-2
+ * libgudev-1.0-0
+ * bluez
+ * bsdmainutils
+ * u-boot-tools
+ * flash-kernel

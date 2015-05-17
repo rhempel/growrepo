@@ -1,0 +1,7 @@
+These items are needed so that the ev3dev development machine can
+create a supermin appliance. For some reason, the recursive grow
+operation does not figure out these packages are specifically required.
+
+ * file
+ * less
+ * libmagic1
