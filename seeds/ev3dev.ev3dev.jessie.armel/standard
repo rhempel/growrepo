@@ -1,0 +1,8 @@
+This is where we put additional packages that are not
+needed in the base install of ev3dev on an SD card. 
+
+In particular, we'll put things required to build programs
+for ev3dev using the `qemu` virtual machine image that is
+created using `brickstrap`
+
+ * build-essential
